@@ -7,4 +7,6 @@ export const store = configureStore({
     tool: toolReducer,
     annotations: annotationReducer,
   },
+  // Enable Redux DevTools only in development mode
+  devTools: import.meta.env.MODE !== 'production',
 });

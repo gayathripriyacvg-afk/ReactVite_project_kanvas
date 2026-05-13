@@ -13,7 +13,7 @@ import {
   MessageSquare, Layers, Settings, Download, Loader2, Share2, Check
 } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
-import { setTool, setColor, setSize } from '../redux/toolSlice';
+import { setTool, setColor, setSize, toggle3DMode } from '../redux/toolSlice';
 import { 
   setLocalAnnotations, 
   updateAllAnnotations, 
@@ -24,15 +24,18 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
+import { Box, Cuboid, BoxSelect } from 'lucide-react';
 
 // Set worker for react-pdf (Ensure version match with CDN)
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 const PdfViewer = ({ fileUrl, documentId }) => {
   const dispatch = useDispatch();
-  const { activeTool, brushColor, brushSize } = useSelector((state) => state.tool);
+  const { activeTool, brushColor, brushSize, is3DMode } = useSelector((state) => state.tool);
 
   const [numPages, setNumPages] = useState(null);
+  const [mouseX, setMouseX] = useState(0);
+  const [mouseY, setMouseY] = useState(0);
   const [pageNumber, setPageNumber] = useState(() => {
     const saved = localStorage.getItem(`pdf-page-${documentId}`);
     return saved ? parseInt(saved) : 1;
@@ -52,15 +55,34 @@ const PdfViewer = ({ fileUrl, documentId }) => {
 
   // Load from LocalStorage on mount
   useEffect(() => {
-    const saved = localStorage.getItem(`pdf-anno-${documentId}`);
-    if (saved) {
+    const savedAnno = localStorage.getItem(`pdf-anno-${documentId}`);
+    if (savedAnno) {
       try {
-        dispatch(updateAllAnnotations(JSON.parse(saved)));
-      } catch (e) {
-        console.error("Failed to parse local storage", e);
-      }
+        dispatch(updateAllAnnotations(JSON.parse(savedAnno)));
+      } catch (e) { console.error(e); }
+    }
+
+    const savedTool = localStorage.getItem('pdf-tool-settings');
+    if (savedTool) {
+      try {
+        const { tool, color, size, is3D } = JSON.parse(savedTool);
+        if (tool) dispatch(setTool(tool));
+        if (color) dispatch(setColor(color));
+        if (size) dispatch(setSize(size));
+        // We don't auto-toggle 3D to avoid disorientation, but we store it
+      } catch (e) { console.error(e); }
     }
   }, [documentId, dispatch]);
+
+  // Sync tools to LocalStorage
+  useEffect(() => {
+    localStorage.setItem('pdf-tool-settings', JSON.stringify({
+      tool: activeTool,
+      color: brushColor,
+      size: brushSize,
+      is3D: is3DMode
+    }));
+  }, [activeTool, brushColor, brushSize, is3DMode]);
   
   // Sync page number to LocalStorage
   useEffect(() => {
@@ -275,8 +297,18 @@ const PdfViewer = ({ fileUrl, documentId }) => {
     return rgb(r, g, b);
   };
 
+  const handleMouseMove = (e) => {
+    if (!is3DMode) return;
+    const { clientX, clientY } = e;
+    const { innerWidth, innerHeight } = window;
+    const x = (clientX - innerWidth / 2) / 20;
+    const y = (clientY - innerHeight / 2) / 20;
+    setMouseX(x);
+    setMouseY(-y);
+  };
+
   return (
-    <div className="flex h-[calc(100vh-120px)] w-full gap-4 p-2 overflow-hidden">
+    <div className="flex h-[calc(100vh-120px)] w-full gap-4 p-2 overflow-hidden" onMouseMove={handleMouseMove}>
       
       {/* LEFT SIDEBAR: Toolbar */}
       <motion.aside 
@@ -292,6 +324,7 @@ const PdfViewer = ({ fileUrl, documentId }) => {
             { id: 'rect', icon: Square, label: 'Box' },
             { id: 'circle', icon: CircleIcon, label: 'Circle' },
             { id: 'arrow', icon: ArrowUpRight, label: 'Arrow' },
+            { id: 'cube', icon: Box, label: '3D Box' },
             { id: 'text', icon: Type, label: 'Comment' },
             { id: 'eraser', icon: Eraser, label: 'Erase' }
           ].map((tool) => (
@@ -308,6 +341,18 @@ const PdfViewer = ({ fileUrl, documentId }) => {
         </div>
         <Separator />
         <div className="flex flex-col gap-4 items-center">
+           <Button 
+             variant={is3DMode ? "default" : "ghost"} 
+             size="icon" 
+             onClick={() => dispatch(toggle3DMode())}
+             className={cn(
+               "h-10 w-10 rounded-xl transition-all duration-700", 
+               is3DMode ? "bg-purple-600 shadow-lg shadow-purple-400 rotate-12 text-white" : "text-slate-400 hover:bg-slate-100"
+             )}
+           >
+             <Cuboid size={22} className={cn(is3DMode && "animate-pulse")} />
+           </Button>
+           <Separator />
            <div className="relative w-8 h-8 rounded-full border-2 border-slate-200 cursor-pointer overflow-hidden shadow-inner group transition-transform hover:scale-110" style={{ backgroundColor: brushColor }}>
              <input type="color" value={brushColor} onChange={(e) => dispatch(setColor(e.target.value))} className="absolute inset-0 opacity-0 cursor-pointer" />
            </div>
@@ -325,6 +370,48 @@ const PdfViewer = ({ fileUrl, documentId }) => {
            </Button>
         </div>
       </motion.aside>
+
+      {/* 3D FLOATING PANEL */}
+      <AnimatePresence>
+        {is3DMode && (
+          <motion.div
+            initial={{ y: 50, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 50, opacity: 0 }}
+            className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[1000] bg-white/80 backdrop-blur-xl border border-purple-200 p-4 rounded-3xl shadow-2xl flex items-center gap-6 min-w-[400px]"
+          >
+            <div className="flex flex-col">
+              <span className="text-[10px] font-black text-purple-600 uppercase tracking-widest mb-1">Advanced 3D Mode</span>
+              <div className="flex items-center gap-3">
+                <Settings size={16} className="text-purple-400 animate-spin-slow" />
+                <span className="text-sm font-bold text-slate-700">Perspective Engine Active</span>
+              </div>
+            </div>
+            <Separator orientation="vertical" className="h-10" />
+            <div className="flex flex-col gap-2 flex-1">
+              <div className="flex justify-between items-center px-1">
+                <span className="text-[9px] font-bold text-slate-400 uppercase">Rotation Depth</span>
+                <span className="text-[9px] font-bold text-purple-600">Active</span>
+              </div>
+              <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden relative">
+                <motion.div 
+                  className="absolute inset-0 bg-purple-500" 
+                  animate={{ width: ['20%', '80%', '20%'] }} 
+                  transition={{ duration: 3, repeat: Infinity }} 
+                />
+              </div>
+            </div>
+            <Button 
+              variant="outline" 
+              className="rounded-2xl border-purple-100 hover:bg-purple-50 text-purple-600 gap-2"
+              onClick={() => alert("Coming Soon: Three.js WebGL Integration for 3D Annotations!")}
+            >
+              <BoxSelect size={16} />
+              <span className="text-xs font-bold">Add WebGL Mesh</span>
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* CENTER: PDF Viewer */}
       <motion.main 
@@ -368,8 +455,21 @@ const PdfViewer = ({ fileUrl, documentId }) => {
         </div>
 
         {/* PDF Scroll Area */}
-        <div className="flex-1 overflow-auto p-8 flex justify-center items-start bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-fixed">
-          <div className="relative shadow-[0_50px_100px_-20px_rgba(0,0,0,0.3)] bg-white transition-all duration-500">
+        <div 
+          className="flex-1 overflow-auto p-8 flex justify-center items-start bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-fixed"
+          style={{ perspective: '2000px' }}
+        >
+          <motion.div 
+            animate={{ 
+              rotateX: is3DMode ? 15 + mouseY : 0, 
+              rotateY: is3DMode ? -15 + mouseX : 0,
+              z: is3DMode ? 100 : 0,
+              scale: is3DMode ? 0.9 : 1
+            }}
+            transition={{ type: 'spring', damping: 20, stiffness: 100 }}
+            className="relative shadow-[0_50px_100px_-20px_rgba(0,0,0,0.3)] bg-white transition-shadow duration-500"
+            style={{ transformStyle: 'preserve-3d' }}
+          >
              {isLoading && <div className="absolute inset-0 z-50 bg-white/80 backdrop-blur-sm flex items-center justify-center font-bold text-blue-600 animate-pulse">Syncing...</div>}
              <Document 
                 file={fileUrl} 
@@ -394,8 +494,8 @@ const PdfViewer = ({ fileUrl, documentId }) => {
                 <div style={{ position: 'absolute', top: 0, left: 0, width: pageSize.width, height: pageSize.height, zIndex: 100 }}>
                   <KonvaCanvas width={pageSize.width} height={pageSize.height} scale={scale} lines={currentLines} setLines={setLocalLines} />
                 </div>
-             )}
-          </div>
+              )}
+           </motion.div>
         </div>
       </motion.main>
 
