@@ -1,3 +1,4 @@
+import { configureStore } from '@reduxjs/toolkit';
 import toolReducer from './toolSlice';
 import annotationReducer from './annotationSlice';
 import authReducer from './authSlice';
