@@ -47,10 +47,15 @@ const PdfViewer = ({ fileUrl, documentId }) => {
   
   // Redux state for annotations (Global working copy)
   const { pageAnnotations, status: saveStatus } = useSelector((state) => state.annotations);
+  const { user, token, status: authStatus, error: authError } = useSelector((state) => state.auth);
   const [isShareCopied, setIsShareCopied] = useState(false);
+  const [authView, setAuthView] = useState('login'); // 'login' or 'register'
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
 
   // Fetch annotations from DB via TanStack Query
-  const { data: remoteAnnotations, isLoading } = useAnnotations(documentId);
+  const { data: remoteAnnotations, isLoading } = useAnnotations(documentId, token);
   // Redux Thunk for saving
   // We still use TanStack Query client for invalidation in the Thunk if needed, 
   // or just handle it in the slice.
