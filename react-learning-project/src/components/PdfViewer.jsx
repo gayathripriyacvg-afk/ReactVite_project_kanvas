@@ -239,9 +239,9 @@ const PdfViewer = ({ fileUrl, documentId }) => {
                 width: Math.abs(w),
                 height: Math.abs(h),
                 borderColor: color,
-                borderWidth: anno.brushSize || 2,
+                borderWidth: (anno.brushSize || 2) * 0.5,
                 color: color,
-                opacity: 0.2
+                opacity: 0.15
               });
             } 
             // Handle Circles
@@ -252,35 +252,89 @@ const PdfViewer = ({ fileUrl, documentId }) => {
                  y: mapY(anno.y),
                  radius: radius,
                  borderColor: color,
-                 borderWidth: anno.brushSize || 2,
+                 borderWidth: (anno.brushSize || 2) * 0.5,
                  color: color,
-                 opacity: 0.2
+                 opacity: 0.15
                });
             } 
+            // Handle Arrows
+            else if (anno.type === 'arrow' && anno.points && anno.points.length >= 4) {
+              const x1 = mapX(anno.points[0]);
+              const y1 = mapY(anno.points[1]);
+              const x2 = mapX(anno.points[2]);
+              const y2 = mapY(anno.points[3]);
+
+              // Main Shaft
+              page.drawLine({
+                start: { x: x1, y: y1 },
+                end: { x: x2, y: y2 },
+                thickness: anno.brushSize || 2,
+                color: color,
+              });
+
+              // Arrow Head
+              const angle = Math.atan2(y2 - y1, x2 - x1);
+              const headLength = 15;
+              const headAngle = Math.PI / 6;
+
+              page.drawLine({
+                start: { x: x2, y: y2 },
+                end: { 
+                  x: x2 - headLength * Math.cos(angle - headAngle), 
+                  y: y2 - headLength * Math.sin(angle - headAngle) 
+                },
+                thickness: anno.brushSize || 2,
+                color: color,
+              });
+              page.drawLine({
+                start: { x: x2, y: y2 },
+                end: { 
+                  x: x2 - headLength * Math.cos(angle + headAngle), 
+                  y: y2 - headLength * Math.sin(angle + headAngle) 
+                },
+                thickness: anno.brushSize || 2,
+                color: color,
+              });
+            }
             // Handle Text
             else if (anno.type === 'text' && anno.text) {
               const w = anno.width * width;
               const h = anno.height * height;
+              const absW = Math.abs(w);
+              const absH = Math.abs(h);
               const tx = w < 0 ? mapX(anno.x) + w : mapX(anno.x);
               const ty = h < 0 ? mapY(anno.y) : mapY(anno.y) - h;
               
+              // Draw white background box to match UI
+              page.drawRectangle({
+                x: tx,
+                y: ty,
+                width: absW,
+                height: absH,
+                color: rgb(1, 1, 1),
+                borderColor: rgb(0.9, 0.9, 0.9),
+                borderWidth: 1,
+                opacity: 0.95,
+              });
+
               const fontSize = 12;
+              const padding = 10;
               const words = anno.text.split(' ');
               let line = '';
-              let currentY = ty + Math.abs(h) - 20;
+              let currentY = ty + absH - fontSize - padding;
 
               for (let n = 0; n < words.length; n++) {
                 const testLine = line + words[n] + ' ';
                 const testWidth = font.widthOfTextAtSize(testLine, fontSize);
-                if (testWidth > Math.abs(w) - 20 && n > 0) {
-                  page.drawText(line, { x: tx + 10, y: currentY, size: fontSize, font, color });
+                if (testWidth > absW - (padding * 2) && n > 0) {
+                  page.drawText(line, { x: tx + padding, y: currentY, size: fontSize, font, color });
                   line = words[n] + ' ';
                   currentY -= fontSize * 1.4;
                 } else {
                   line = testLine;
                 }
               }
-              page.drawText(line, { x: tx + 10, y: currentY, size: fontSize, font, color });
+              page.drawText(line, { x: tx + padding, y: currentY, size: fontSize, font, color });
             }
           } catch (annoErr) {
             console.warn('Skipping malformed annotation during export:', annoErr);
