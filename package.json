@@ -1,0 +1,17 @@
+{
+  "name": "pdf-annotation-system",
+  "version": "1.0.0",
+  "description": "Integrated PDF Annotation System",
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix react-learning-project\"",
+    "install-all": "npm install && npm install --prefix backend && npm install --prefix react-learning-project"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}
