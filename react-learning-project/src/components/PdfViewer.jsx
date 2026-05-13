@@ -33,7 +33,10 @@ const PdfViewer = ({ fileUrl, documentId }) => {
   const { activeTool, brushColor, brushSize } = useSelector((state) => state.tool);
 
   const [numPages, setNumPages] = useState(null);
-  const [pageNumber, setPageNumber] = useState(1);
+  const [pageNumber, setPageNumber] = useState(() => {
+    const saved = localStorage.getItem(`pdf-page-${documentId}`);
+    return saved ? parseInt(saved) : 1;
+  });
   const [scale, setScale] = useState(1.0);
   const [pageSize, setPageSize] = useState({ width: 0, height: 0 });
   
@@ -58,6 +61,11 @@ const PdfViewer = ({ fileUrl, documentId }) => {
       }
     }
   }, [documentId, dispatch]);
+  
+  // Sync page number to LocalStorage
+  useEffect(() => {
+    localStorage.setItem(`pdf-page-${documentId}`, pageNumber.toString());
+  }, [pageNumber, documentId]);
 
   // Sync to LocalStorage whenever pageAnnotations changes
   useEffect(() => {
