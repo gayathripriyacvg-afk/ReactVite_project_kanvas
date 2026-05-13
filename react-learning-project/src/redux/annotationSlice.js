@@ -6,9 +6,9 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/annot
 // Redux Thunk for saving annotations
 export const saveAnnotationsThunk = createAsyncThunk(
   'annotations/save',
-  async ({ documentId, pageNumber, lines }, { rejectWithValue }) => {
+  async ({ documentId, pageNumber, lines, pdfUrl }, { rejectWithValue }) => {
     try {
-      const { data } = await axios.post(API_URL, { documentId, pageNumber, lines });
+      const { data } = await axios.post(API_URL, { documentId, pageNumber, lines, pdfUrl });
       return data;
     } catch (err) {
       return rejectWithValue(err.response.data);

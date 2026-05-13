@@ -19,6 +19,7 @@ mongoose.connect(process.env.MONGODB_URI)
 const annotationSchema = new mongoose.Schema({
   documentId: String,
   pageNumber: Number,
+  pdfUrl: String,
   lines: [
     {
       id: String,
@@ -50,12 +51,12 @@ app.get('/api/annotations/:documentId', async (req, res) => {
 
 // Save or Update annotations
 app.post('/api/annotations', async (req, res) => {
-  const { documentId, pageNumber, lines } = req.body;
+  const { documentId, pageNumber, lines, pdfUrl } = req.body;
   try {
     // Find and update or create new
     const result = await Annotation.findOneAndUpdate(
       { documentId, pageNumber },
-      { lines },
+      { lines, pdfUrl },
       { upsert: true, new: true }
     );
     res.json(result);

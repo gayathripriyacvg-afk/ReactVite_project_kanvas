@@ -101,7 +101,12 @@ const PdfViewer = ({ fileUrl, documentId }) => {
   };
 
   const handleSave = () => {
-    dispatch(saveAnnotationsThunk({ documentId, pageNumber, lines: currentLines }));
+    dispatch(saveAnnotationsThunk({ 
+      documentId, 
+      pageNumber, 
+      lines: currentLines,
+      pdfUrl: typeof fileUrl === 'string' ? fileUrl : 'local-file'
+    }));
   };
   const handleClear = () => { 
     if (window.confirm('Clear all on this page?')) {
@@ -124,6 +129,19 @@ const PdfViewer = ({ fileUrl, documentId }) => {
   };
 
   const [isExporting, setIsExporting] = useState(false);
+  const hasAutoExported = React.useRef(false);
+
+  // Auto-export on opening if annotations exist
+  useEffect(() => {
+    if (remoteAnnotations && remoteAnnotations.length > 0 && !hasAutoExported.current && !isLoading) {
+      // Small delay to ensure rendering is stable
+      const timer = setTimeout(() => {
+        handleExportPDF();
+        hasAutoExported.current = true;
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [remoteAnnotations, isLoading]);
 
   const handleExportPDF = async () => {
     if (!remoteAnnotations || isExporting) return;
