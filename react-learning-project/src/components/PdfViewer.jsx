@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { setTool, setColor, setSize, toggle3DMode } from '../redux/toolSlice';
+import { logout, loginThunk, registerThunk } from '../redux/authSlice';
 import { 
   setLocalAnnotations, 
   updateAllAnnotations, 
@@ -21,10 +22,11 @@ import {
   saveAnnotationsThunk 
 } from '../redux/annotationSlice';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
-import { Box, Cuboid, BoxSelect } from 'lucide-react';
+import { Box, Cuboid, BoxSelect, LogIn, LogOut, User as UserIcon } from 'lucide-react';
 
 // Set worker for react-pdf (Ensure version match with CDN)
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -127,6 +129,7 @@ const PdfViewer = ({ fileUrl, documentId }) => {
       documentId, 
       pageNumber, 
       lines: currentLines,
+      userId: user?.id,
       pdfUrl: typeof fileUrl === 'string' ? fileUrl : 'local-file'
     }));
   };
@@ -368,6 +371,23 @@ const PdfViewer = ({ fileUrl, documentId }) => {
            <Button variant="ghost" size="icon" onClick={handleClear} className="text-rose-600 hover:bg-rose-50 transition-colors">
              <Trash2 size={20} />
            </Button>
+        <Separator />
+        <div className="flex flex-col gap-4 items-center mt-auto pb-4">
+           {user ? (
+             <Button 
+               variant="ghost" 
+               size="icon" 
+               onClick={() => dispatch(logout())}
+               className="text-slate-400 hover:text-rose-500 transition-colors"
+               title="Logout"
+             >
+               <LogOut size={20} />
+             </Button>
+           ) : (
+             <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+               <UserIcon size={16} />
+             </div>
+           )}
         </div>
       </motion.aside>
 
@@ -565,6 +585,73 @@ const PdfViewer = ({ fileUrl, documentId }) => {
           </div>
         </div>
       </motion.aside>
+
+      {/* AUTH OVERLAY */}
+      {!user && (
+        <div className="fixed inset-0 z-[2000] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white p-8 rounded-[40px] shadow-2xl w-full max-w-md border border-slate-100"
+          >
+            <div className="text-center mb-8">
+               <div className="w-16 h-16 bg-blue-100 rounded-3xl flex items-center justify-center mx-auto mb-4 text-blue-600">
+                 <LogIn size={32} />
+               </div>
+               <h2 className="text-2xl font-black text-slate-800 tracking-tight">
+                 {authView === 'login' ? 'Welcome Back' : 'Create Account'}
+               </h2>
+               <p className="text-sm text-slate-400 font-medium">
+                 {authView === 'login' ? 'Sign in to save your annotations to the cloud.' : 'Join us to persist your work across devices.'}
+               </p>
+            </div>
+
+            <div className="flex flex-col gap-4">
+               {authView === 'register' && (
+                 <Input 
+                   placeholder="Your Name" 
+                   value={name} 
+                   onChange={(e) => setName(e.target.value)}
+                   className="rounded-2xl border-slate-100 bg-slate-50 focus:bg-white transition-all h-12"
+                 />
+               )}
+               <Input 
+                 placeholder="Email Address" 
+                 type="email"
+                 value={email} 
+                 onChange={(e) => setEmail(e.target.value)}
+                 className="rounded-2xl border-slate-100 bg-slate-50 focus:bg-white transition-all h-12"
+               />
+               <Input 
+                 placeholder="Password" 
+                 type="password"
+                 value={password} 
+                 onChange={(e) => setPassword(e.target.value)}
+                 className="rounded-2xl border-slate-100 bg-slate-50 focus:bg-white transition-all h-12"
+               />
+               
+               {authError && <p className="text-[10px] font-bold text-rose-500 text-center uppercase tracking-widest">{authError}</p>}
+
+               <Button 
+                 onClick={() => authView === 'login' ? dispatch(loginThunk({ email, password })) : dispatch(registerThunk({ email, password, name }))}
+                 disabled={authStatus === 'loading'}
+                 className="h-12 rounded-2xl bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-100 font-bold transition-all active:scale-95"
+               >
+                 {authStatus === 'loading' ? <Loader2 className="animate-spin" size={20} /> : (authView === 'login' ? 'Sign In' : 'Sign Up')}
+               </Button>
+            </div>
+
+            <div className="mt-8 text-center">
+              <button 
+                onClick={() => setAuthView(authView === 'login' ? 'register' : 'login')}
+                className="text-xs font-bold text-slate-400 hover:text-blue-600 transition-colors uppercase tracking-widest"
+              >
+                {authView === 'login' ? "Don't have an account? Sign Up" : "Already have an account? Sign In"}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
     </div>
   );
