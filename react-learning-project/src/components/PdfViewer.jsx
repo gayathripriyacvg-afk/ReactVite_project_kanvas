@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { setTool, setColor, setSize, toggle3DMode } from '../redux/toolSlice';
-import { logout, loginThunk, registerThunk } from '../redux/authSlice';
+import { logout, loginThunk, registerThunk, clearError } from '../redux/authSlice';
 import { 
   setLocalAnnotations, 
   updateAllAnnotations, 
@@ -90,8 +90,13 @@ const PdfViewer = ({ fileUrl, documentId }) => {
       is3D: is3DMode
     }));
   }, [activeTool, brushColor, brushSize, is3DMode]);
-  
-  // Sync page number to LocalStorage
+  // Effect to switch to login view after successful registration
+  useEffect(() => {
+    if (authStatus === 'succeeded' && authView === 'register') {
+      setAuthView('login');
+      // Optionally show a success toast here
+    }
+  }, [authStatus, authView]);
   useEffect(() => {
     localStorage.setItem(`pdf-page-${documentId}`, pageNumber.toString());
   }, [pageNumber, documentId]);
@@ -649,7 +654,10 @@ const PdfViewer = ({ fileUrl, documentId }) => {
 
             <div className="mt-8 text-center">
               <button 
-                onClick={() => setAuthView(authView === 'login' ? 'register' : 'login')}
+                onClick={() => {
+                  setAuthView(authView === 'login' ? 'register' : 'login');
+                  dispatch(clearError());
+                }}
                 className="text-xs font-bold text-slate-400 hover:text-blue-600 transition-colors uppercase tracking-widest"
               >
                 {authView === 'login' ? "Don't have an account? Sign Up" : "Already have an account? Sign In"}
