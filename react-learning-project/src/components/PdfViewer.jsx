@@ -371,6 +371,7 @@ const PdfViewer = ({ fileUrl, documentId }) => {
            <Button variant="ghost" size="icon" onClick={handleClear} className="text-rose-600 hover:bg-rose-50 transition-colors">
              <Trash2 size={20} />
            </Button>
+        </div>
         <Separator />
         <div className="flex flex-col gap-4 items-center mt-auto pb-4">
            {user ? (
